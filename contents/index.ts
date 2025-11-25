@@ -23,8 +23,7 @@ listen(async (req, res) => {
     });
 
     let isFirstSlide = true;
-    let previousSlideContent = '';
-
+    
     while (true) {
       const slide: HTMLElement | null = document.querySelector('.canvas-precision-wrapper');
       if (!slide) break;
