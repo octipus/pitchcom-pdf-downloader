@@ -23,14 +23,17 @@ listen(async (req, res) => {
     });
 
     let isFirstSlide = true;
+    let previousSlideContent = '';
 
     while (true) {
-      const slide: HTMLElement = document.querySelector('.canvas-precision-wrapper');
+      const slide: HTMLElement | null = document.querySelector('.canvas-precision-wrapper');
       if (!slide) break;
+
+      // Wait for slide to be ready
+      await sleep(300);
 
       const canvas = await html2canvas(slide, { logging: true, useCORS: true });
       const imgData = canvas.toDataURL("image/png", 1.0);
-      // const imgProps = pdf.getImageProperties(imgData);
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -55,12 +58,34 @@ listen(async (req, res) => {
       pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
       isFirstSlide = false;
 
-      const nextSlideButton: HTMLButtonElement = document.querySelector('[aria-label="next"]');
-      if (nextSlideButton.disabled) {
+      // Use data-test-id selector which is more reliable, or try both selectors
+      const nextSlideButton: HTMLButtonElement | null = 
+        document.querySelector('[data-test-id="player-button-next"]') ||
+        document.querySelector('[aria-label="Next"]') ||
+        document.querySelector('[aria-label="next"]');
+      
+      if (!nextSlideButton || nextSlideButton.disabled) {
         break;
-      } else {
-        nextSlideButton?.click();
-        await sleep(100);
+      }
+
+      // Store current slide content to detect when it changes
+      const currentSlideContent = slide.innerHTML;
+      
+      // Click the next button
+      nextSlideButton.click();
+      
+      // Wait for slide transition and verify it changed
+      await sleep(500);
+      
+      // Wait up to 2 seconds for slide to change
+      let attempts = 0;
+      while (attempts < 10) {
+        const newSlide = document.querySelector('.canvas-precision-wrapper');
+        if (newSlide && newSlide.innerHTML !== currentSlideContent) {
+          break; // Slide has changed
+        }
+        await sleep(200);
+        attempts++;
       }
     }
     
